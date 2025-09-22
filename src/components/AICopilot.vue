@@ -1,122 +1,75 @@
 <template>
-    <div :style="workareaStyles.copilotWrapper">
-        <!-- 左侧工作区 -->
-        <div :style="workareaStyles.workarea">
-            <div :style="workareaStyles.workareaHeader">
-                <div class="w-100 d-flex" :style="workareaStyles.headerTitle">
-
-                    <v-icon icon="mdi-ideogram-cjk-variant"></v-icon>
-
-                    <v-divider class="mx-3" vertical></v-divider>
-
-                    AI 写作
-
-                    <v-spacer></v-spacer>
-                    <v-btn class="text-none" variant="text">
-                        <v-icon class="mr-2 mt-1" icon="mdi-download" size="18"></v-icon>
-                        下载
-                        <v-menu activator="parent" location="bottom center" max-width="200" offset="8">
-                            <v-card elevation="4" rounded="lg">
-                                <v-card-text class="pa-2">
-                                    <v-list-item link rounded="lg" @click="download('Word')">
-                                        <template #title>
-                                            <v-icon class="mr-2" icon="mdi-file-word" size="18"></v-icon>
-                                            <span class="text-body-2 font-weight-bold">Word</span>
-                                        </template>
-                                    </v-list-item>
-                                    <v-list-item link rounded="lg" @click="download('Markdown')">
-                                        <template #title>
-                                            <v-icon class="mr-2" icon="mdi-file-document" size="18"></v-icon>
-                                            <span class="text-body-2 font-weight-bold">Markdown</span>
-                                        </template>
-                                    </v-list-item>
-                                </v-card-text>
-                            </v-card>
-                        </v-menu>
-                    </v-btn>
-                </div>
-                <div v-if="!copilotOpen" :style="workareaStyles.headerButton" @click="setCopilotOpen(true)">
+    <!-- 右侧对话区 -->
+    <div :style="{ ...AICopilotStore.styles.copilotChat, display: AICopilotStore.copilotOpen ? 'flex' : 'none' }">
+        <!-- 对话区 - header -->
+        <!-- {chatHeader} -->
+        <div :style="AICopilotStore.styles.chatHeader">
+            <div class="d-flex align-center" :style="AICopilotStore.styles.headerTitle">
+                <div class="pt-1">
                     ✨ AI 助手
                 </div>
+                <Settings></Settings>
             </div>
-
-            <div :class="[agent.isRequesting() ? 'opacity-70' : '', 'position-relative', 'overflow-hidden']"
-                :style="{ ...workareaStyles.workareaBody, margin: copilotOpen ? '16px' : '16px 48px' }">
-                <v-progress-linear v-show="agent.isRequesting()" class="position-absolute top-0 right-0 left-0"
-                    indeterminate></v-progress-linear>
-
-                <div :style="workareaStyles.bodyContent">
-                    <Editor v-model="writing"></Editor>
-                </div>
-            </div>
+            <Space :size="0">
+                <Button type="text" :icon="h(CloseOutlined)" :style="AICopilotStore.styles.headerButton"
+                    @click="AICopilotStore.setCopilotOpen(false)" />
+            </Space>
         </div>
-        <!-- 右侧对话区 -->
-        <div :style="{ ...styles.copilotChat, display: copilotOpen ? 'flex' : 'none' }">
-            <!-- 对话区 - header -->
-            <!-- {chatHeader} -->
-            <div :style="styles.chatHeader">
-                <div :style="styles.headerTitle">
-                    ✨ AI 助手
-                </div>
-                <Space :size="0">
-                    <!-- <Button type="text" :icon="h(PlusOutlined)" :style="styles.headerButton"
-                        @click="createNewSession" /> -->
-                    <!-- <Popover placement="bottom" :overlay-style="{ padding: 0, maxHeight: 600 }">
-                        <template #content>
-                            <Conversations :items="sessionList?.map((i) =>
-                                i.key === curSession ? { ...i, label: `[current] ${i.label}` } : i,
-                            )" :active-key="curSession" groupable
-                                :styles="{ ...styles.conversations, item: { padding: '0 8px' } }"
-                                @active-change="changeConversation" />
-                        </template>
-<Button type="text" :icon="h(CommentOutlined)" :style="styles.headerButton" />
-</Popover> -->
-                    <Button type="text" :icon="h(CloseOutlined)" :style="styles.headerButton"
-                        @click="setCopilotOpen(false)" />
-                </Space>
-            </div>
-            <!-- 对话区 - 消息列表 -->
-            <div :style="styles.chatList">
-                <Bubble.List v-if="messages?.length" :style="{ height: '100%', paddingInline: '16px' }" :items="messages?.map((i: any) => ({
-                    ...i.message,
-                    styles: {
-                        content: i.status === 'loading' ? styles.loadingMessage : {},
-                    },
-                    loading: (i.status === 'loading' && !i.message.content),
-                    typing: i.status === 'loading' ? { step: 2, interval: 20, suffix: h('span', '') } : false,
-                    messageRender: i.message.role == 'assistant' ? renderMarkdown : null
-                }))" :roles="roles" />
-                <template v-else>
-                    <Welcome variant="borderless" title="👋 你好，我是 AI 写作" description="AI 写作的魅力在于它能像人类一样创作文本，并且效率极高。"
-                        :style="styles.chatWelcome" />
-                    <Prompts vertical :title="() => '我可以帮忙：'"
-                        :items="MOCK_QUESTIONS.map((i) => ({ key: i, description: i }))" :style="{
-                            'margin-inline': '16px',
-                        }" :styles="{
-                            title: { fontSize: 14 },
-                        }" @item-click="(info) => handleUserSubmit(info?.data?.description as string)" />
-                </template>
-            </div>
+        <!-- 对话区 - 消息列表 -->
+        <div :style="AICopilotStore.styles.chatList">
+            <Bubble.List v-if="messages?.length" :style="{ height: '100%', paddingInline: '16px' }" :items="messages?.map((i: any) => ({
+                ...i.message,
+                styles: {
+                    content: i.status === 'loading' ? AICopilotStore.styles.loadingMessage : {},
+                },
+                loading: (i.status === 'loading' && !i.message.content),
+                typing: i.status === 'loading' ? { step: 2, interval: 20, suffix: h('span', '') } : false,
+                messageRender: i.message.role == 'assistant' ? renderMarkdown : null
+            }))" :roles="roles" />
+            <template v-else>
+                <Welcome variant="borderless" title="👋 你好，我是 AI 写作" description="AI 写作的魅力在于它能像人类一样创作文本，并且效率极高。"
+                    :style="AICopilotStore.styles.chatWelcome" />
+                <Prompts vertical :title="() => '我可以帮忙：'"
+                    :items="AICopilotStore.MOCK_QUESTIONS.map((i) => ({ key: i, description: i }))" :style="{
+                        'margin-inline': '16px',
+                    }" :styles="{
+                        title: { fontSize: 14 },
+                    }" @item-click="(info) => handleUserSubmit(info?.data?.description as string)" />
+            </template>
+        </div>
 
-            <!-- 对话区 - 输入框 -->
-            <!-- {chatSender} -->
-            <div :style="styles.chatSend">
-                <div :style="styles.sendAction">
-                    <Button :icon="h(ScheduleOutlined)" @click="handleUserSubmit('生成目录')">
-                        生成目录
-                    </Button>
-                    <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('文章提要')">
-                        文章提要
-                    </Button>
-                    <Button :icon="h(AppstoreAddOutlined)" @click="handleUserSubmit('关键字')">
-                        关键字
-                    </Button>
-                </div>
-                <!-- 输入框 -->
+        <!-- 对话区 - 输入框 -->
+        <!-- {chatSender} -->
+        <div :style="AICopilotStore.styles.chatSend">
+            <div :style="AICopilotStore.styles.sendAction">
+                <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('生成目录')">
+                    生成目录
+                </Button>
+                <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('文章提要')">
+                    文章提要
+                </Button>
+                <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('关键字')">
+                    关键字
+                </Button>
+            </div>
+            <div :style="AICopilotStore.styles.sendAction">
+                <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('缩编文章')">
+                    缩编文章
+                </Button>
+                <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('自动润色')">
+                    自动润色
+                </Button>
+                <Button :icon="h(AppstoreOutlined)" @click="handleUserSubmit('生成大纲')">
+                    生成大纲
+                </Button>
+            </div>
+            <!-- 输入框 -->
 
-                <Suggestion :items="() => MOCK_SUGGESTIONS" @select="(itemVal) => inputValue = `[${itemVal}]:`">
-                    <template #default="props">
-                        <Sender :loading="loading" :value="inputValue" allow-speech placeholder="发信息或选择文件" @change="(v) => {
+            <Suggestion :items="() => AICopilotStore.MOCK_SUGGESTIONS"
+                @select="(itemVal) => inputValue = `[${itemVal}]:`">
+                <template #default="props">
+                    <Sender :loading="AICopilotStore.loading" :value="inputValue" allow-speech placeholder="发问题或话题"
+                        @change="(v) => {
                             props?.onTrigger(v === '/');
                             inputValue = v;
                         }" @submit="() => {
@@ -128,36 +81,17 @@
                             } catch (error) {
                                 console.error(error);
                             }
-                        }" @key-down="props?.onKeyDown" @paste-file="onPasteFile">
-                            <template #header>
-                                <Sender.Header title="上传文件" :styles="{ content: { padding: 0 } }"
-                                    :open="attachmentsOpen" force-render @open-change="val => attachmentsOpen = val">
-                                    <Attachments ref="attachmentsRef" :before-upload="() => false" :items="files"
-                                        :placeholder="(type) =>
-                                            type === 'drop'
-                                                ? { title: 'Drop file here' }
-                                                : {
-                                                    icon: h(CloudUploadOutlined),
-                                                    title: '上传文件',
-                                                    description: '点击或拖放文件到此区域以上传',
-                                                }" @change="({ fileList }) => files = fileList" />
-                                </Sender.Header>
-                            </template>
-                            <template #prefix>
-                                <Button type="text" :icon="h(PaperClipOutlined, { style: { fontSize: '18px' } })"
-                                    @click="attachmentsOpen = !attachmentsOpen" />
-                            </template>
-                            <template #actions="{ info: { components: { SendButton, LoadingButton, SpeechButton } } }">
-                                <div :style="{ display: 'flex', alignItems: 'center', gap: 4 }">
-                                    <component :is="SpeechButton" :style="styles.speechButton" />
-                                    <component :is="LoadingButton" v-if="loading" type="default" />
-                                    <component :is="SendButton" v-else type="primary" />
-                                </div>
-                            </template>
-                        </Sender>
-                    </template>
-                </Suggestion>
-            </div>
+                        }" @key-down="props?.onKeyDown">
+                        <template #actions="{ info: { components: { SendButton, LoadingButton, SpeechButton } } }">
+                            <div :style="{ display: 'flex', alignItems: 'center', gap: 4 }">
+                                <component :is="LoadingButton" v-if="AICopilotStore.loading" type="default"
+                                    @click="AICopilotStore.loading = false" />
+                                <component :is="SendButton" v-else type="primary" />
+                            </div>
+                        </template>
+                    </Sender>
+                </template>
+            </Suggestion>
         </div>
     </div>
 </template>
@@ -166,19 +100,14 @@
 import {
     AppstoreAddOutlined,
     CloseOutlined,
-    CloudUploadOutlined,
     CopyOutlined,
     DislikeOutlined,
     LikeOutlined,
-    PaperClipOutlined,
     AppstoreOutlined,
     ReloadOutlined,
     ScheduleOutlined,
-    PlusOutlined,
 } from '@ant-design/icons-vue';
 import {
-    Attachments,
-    type Attachment,
     Bubble,
     type Conversation,
     Prompts,
@@ -187,99 +116,48 @@ import {
     Welcome,
     useXAgent,
     useXChat,
-    theme,
     type BubbleProps,
 } from 'ant-design-x-vue';
-import { Button, Space, Typography, message } from 'ant-design-vue';
-import { ref, watch, computed, h } from 'vue';
-import markdownit from 'markdown-it';
+import { Button, Space, Typography } from 'ant-design-vue';
+import { ref, watch, h } from 'vue';
 import { useAICopilotStore } from '@/stores/ai-copilot';
-import { saveAs } from 'file-saver';
-import axios from 'axios';
+import markdownit from 'markdown-it';
+import { useEditorStore } from '@/stores/editor';
+import { useSettingsStore } from '@/stores/settings';
+import Settings from './Settings.vue';
+import { AIImageApi } from 'spacegt';
+import { v4 as uuid } from 'uuid'
+
+const AICopilotStore = useAICopilotStore()
+const EditorStore = useEditorStore()
+const SettingsStore = useSettingsStore()
 
 const aliyun_ai_service = import.meta.env.VITE_APP_ALIYUN_AI_SERVICE
-const file_service = import.meta.env.VITE_APP_FILE_SERVICE
 
 defineOptions({ name: 'PlaygroundCopilotSetup' });
 
 const md = markdownit({ html: true, breaks: true });
 
-const renderMarkdown: BubbleProps['messageRender'] = (content: string) =>
-    h(Typography, null, {
-        default: () => h('div', { innerHTML: md.render(content) }),
-    });
+const renderMarkdown: BubbleProps['messageRender'] =
+    (content: string) => h(Typography, null, { default: () => h('div', { innerHTML: md.render(content) }), });
 
-const MOCK_SESSION_LIST = [
-    {
-        key: '5',
-        label: 'New session',
-        group: 'Today',
-    },
-    {
-        key: '4',
-        label: 'What has Ant Design X upgraded?',
-        group: 'Today',
-    },
-    {
-        key: '3',
-        label: 'New AGI Hybrid Interface',
-        group: 'Today',
-    },
-    {
-        key: '2',
-        label: 'How to quickly install and import components?',
-        group: 'Yesterday',
-    },
-    {
-        key: '1',
-        label: 'What is Ant Design X?',
-        group: 'Yesterday',
-    },
-];
-const MOCK_SUGGESTIONS = [
-    { label: 'Write a report', value: 'report' },
-    { label: 'Draw a picture', value: 'draw' },
-    {
-        label: 'Check some knowledge',
-        value: 'knowledge',
-        children: [
-            { label: 'About React', value: 'react' },
-            { label: 'About Ant Design', value: 'antd' },
-        ],
-    },
-];
-const MOCK_QUESTIONS = [
-    'AI 写作有哪些新功能？',
-    'AI 写作包含了哪些组件或模块？',
-    '如何快速开始使用 AI 写作？',
-];
-const AGENT_PLACEHOLDER = '正在生成内容，请稍候 . . .';
-
-
-const attachmentsRef = ref<InstanceType<typeof Attachments>>();
 const abortController = ref<AbortController>();
 
 // ==================== State ====================
 
 const messageHistory = ref<Record<string, any>>({});
 
-const sessionList = ref<Conversation[]>(MOCK_SESSION_LIST);
+const sessionList = ref<Conversation[]>(AICopilotStore.MOCK_SESSION_LIST);
 const curSession = ref(sessionList.value[0].key);
 
-const attachmentsOpen = ref(false);
-const files = ref<Attachment[]>([]);
-
 const inputValue = ref('');
-
-const writing = ref(``)
-
-const AICopilotStore = useAICopilotStore()
-
 
 // ==================== Runtime ====================
 
 const [agent] = useXAgent<string, { message: { content: string, role: string } }, { content: string; role: string }>({
     request: async ({ message }, { onSuccess, onUpdate }) => {
+        AICopilotStore.loading = true
+
         let fullData: string = ''
         let intention: string = ''
 
@@ -295,7 +173,7 @@ const [agent] = useXAgent<string, { message: { content: string, role: string } }
                 "session-id": AICopilotStore.session_id ?? ''
             },
             body: JSON.stringify({
-                prompt: message.content,
+                prompt: `(请使用${SettingsStore.language}回答问题)(不要出现敏感词:${SettingsStore.sensitiveWords})${message.content}`,
             })
         }).then(response => {
             const reader = response?.body?.getReader();
@@ -305,17 +183,39 @@ const [agent] = useXAgent<string, { message: { content: string, role: string } }
             return new ReadableStream({
                 start(controller) {
                     function push() {
-                        reader?.read().then(({ done, value }) => {
+                        reader?.read().then(async ({ done, value }) => {
                             if (done) {
                                 console.log('Stream complete');
                                 controller.close();
-                                if (intention == 'Writing') {
-                                    onUpdate({ content: '文章创作完成', role: 'assistant' })
-                                    onSuccess([{ content: '文章创作完成', role: 'assistant' }])
-                                    writing.value = fullData
-                                } else {
-                                    onSuccess([{ content: fullData, role: 'assistant' }])
-                                }
+                                try {
+                                    if (intention == 'Writing') {
+                                        onUpdate({ content: '文章创作完成', role: 'assistant' })
+                                        onSuccess([{ content: '文章创作完成', role: 'assistant' }])
+                                        EditorStore.writing = fullData
+                                        setMessages((prev: any) => [...prev, { id: uuid(), message: { content: "开始生成插图", role: "assistant" }, status: 'success' }])
+                                        agent.value.request({ message: { content: '根据文章生成插图关键词，要求300字内', role: '' } }, {
+                                            onUpdate: function (chunk: { content: string; role: string; }): void { },
+                                            onSuccess: async function (chunk: { content: string; role: string; }[]): Promise<void> {
+                                                const url = chunk[0].content
+                                                EditorStore.writing = addImageToSecondLine(EditorStore.writing, url)
+                                                setMessages((prev: any) => [...prev, { id: uuid(), message: { content: "插图生成完成", role: "assistant" }, status: 'success' }])
+                                            },
+                                            onError: function (error: Error): void { }
+                                        })
+                                    } else if (intention == 'ImgPrompt') {
+                                        const text2imageResponse = await AIImageApi.text2image({
+                                            prompt: fullData,
+                                            n: 1,
+                                            size: '1280*720',
+                                            seed: 1234,
+                                            negative_prompt: ''
+                                        })
+                                        onSuccess([{ content: text2imageResponse.results[0].url, role: 'assistant' }])
+                                    } else {
+                                        onSuccess([{ content: fullData, role: 'assistant' }])
+                                    }
+                                } catch (e) { console.error(e) }
+                                AICopilotStore.loading = false
                                 return;
                             }
 
@@ -353,8 +253,11 @@ const [agent] = useXAgent<string, { message: { content: string, role: string } }
                             } catch (e) {
                                 console.error(e)
                             }
+
                             if (intention == 'Writing') {
-                                writing.value = fullData
+                                EditorStore.writing = fullData
+                            } else if (intention == 'ImgPrompt') {
+                                // 回复过程中不做处理，结束合成图片
                             } else {
                                 onUpdate({ content: fullData, role: 'assistant' })
                             }
@@ -364,14 +267,10 @@ const [agent] = useXAgent<string, { message: { content: string, role: string } }
                     push();
                 }
             });
-        })
-            .catch(error => console.error(error));
+        }).catch(error => console.error(error));
     },
 });
 
-
-
-const loading = agent.value.isRequesting();
 
 const { messages, onRequest, setMessages } = useXChat({
     agent: agent.value,
@@ -397,7 +296,6 @@ watch(
     }
 );
 
-
 // ==================== Event ====================
 const handleUserSubmit = (val: string) => {
     onRequest({
@@ -411,201 +309,6 @@ const handleUserSubmit = (val: string) => {
         sessionList.value = tempList
     }
 };
-
-const onPasteFile = (_: File, files: FileList) => {
-    for (const file of Array.from(files)) {
-        attachmentsRef.value?.upload(file);
-    }
-    attachmentsOpen.value = true;
-};
-
-const createNewSession = () => {
-    if (agent.value.isRequesting()) {
-        message.error(
-            'Message is Requesting, you can create a new conversation after request done or abort it right now...',
-        );
-        return;
-    }
-
-    if (messages.value?.length) {
-        const timeNow = new Date().getTime().toString();
-        try {
-            abortController.value?.abort();
-        } catch (error) {
-            console.error(error);
-        }
-        // The abort execution will trigger an asynchronous requestFallback, which may lead to timing issues.
-        // In future versions, the sessionId capability will be added to resolve this problem.
-        setTimeout(() => {
-            sessionList.value = [
-                { key: timeNow, label: 'New session', group: 'Today' },
-                ...sessionList.value,
-            ]
-            curSession.value = timeNow;
-        }, 100);
-    } else {
-        message.error('现在是新的对话了。');
-    }
-}
-
-const changeConversation = async (val: string) => {
-    try {
-        abortController.value?.abort();
-    } catch (error) {
-        console.error(error);
-    }
-    // The abort execution will trigger an asynchronous requestFallback, which may lead to timing issues.
-    // In future versions, the sessionId capability will be added to resolve this problem.
-    setTimeout(() => {
-        curSession.value = val;
-    }, 100);
-}
-
-const setCopilotOpen = (val: boolean) => copilotOpen.value = val;
-
-
-// ==================== Style ====================
-const { token } = theme.useToken();
-const styles = computed(() => {
-    return {
-        copilotChat: {
-            width: '400px',
-            display: 'flex',
-            flexDirection: 'column',
-            background: token.value.colorBgContainer,
-            color: token.value.colorText,
-        },
-        // chatHeader 样式
-        chatHeader: {
-            height: '52px',
-            boxSizing: 'border-box',
-            borderBottom: `1px solid ${token.value.colorBorder}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 10px 0 16px',
-        },
-        headerTitle: {
-            'font-weight': 600,
-            'font-size': '15px',
-        },
-        headerButton: {
-            width: '32px',
-            height: '32px',
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'center',
-            'font-size': '18px',
-        },
-        conversations: {
-            width: '300px',
-            '& .ant-conversations-list': {
-                paddingInlineStart: 0,
-            },
-        },
-        // chatList 样式
-        chatList: {
-            overflow: 'auto',
-            'padding-block': '16px',
-            flex: 1,
-        },
-        chatWelcome: {
-            'margin-inline': '16px',
-            padding: '12px 16px',
-            'border-radius': '2px 12px 12px 12px',
-            'background': token.value.colorBgTextHover,
-            'margin-bottom': '16px',
-        },
-        loadingMessage: {
-            'background-image': 'linear-gradient(90deg, #ff6b23 0%, #af3cb8 31%, #53b6ff 89%)',
-            'background-size': '100% 2px',
-            'background-repeat': 'no-repeat',
-            'background-position': 'bottom',
-        },
-        // chatSend 样式
-        chatSend: {
-            padding: '12px'
-        },
-        sendAction: {
-            display: 'flex',
-            'align-items': 'center',
-            'margin-bottom': '12px',
-            gap: '8px',
-        },
-        speechButton: {
-            'font-size': '18px',
-            color: `${token.value.colorText} !important`,
-        },
-    } as const;
-});
-const workareaStyles = computed(() => {
-    return {
-        copilotWrapper: {
-            'min-width': '970px',
-            height: '100vh',
-            display: 'flex',
-        },
-        workarea: {
-            flex: 1,
-            background: token.value.colorBgLayout,
-            display: 'flex',
-            flexDirection: 'column',
-        },
-        workareaHeader: {
-            'box-sizing': 'border-box',
-            height: '52px',
-            display: 'flex',
-            alignItems: 'center',
-            'justify-content': 'space-between',
-            padding: '0 48px 0 28px',
-            'border-bottom': `1px solid ${token.value.colorBorder}`,
-        },
-        headerTitle: {
-            'font-weight': 600,
-            'font-size': '15px',
-            'color': token.value.colorText,
-            'display': 'flex',
-            'align-items': 'center',
-            'gap': '8px',
-        },
-        headerButton: {
-            'background-image': 'linear-gradient(78deg, #8054f2 7%, #3895da 95%)',
-            'border-radius': '12px',
-            height: '24px',
-            width: '93px',
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'center',
-            color: '#fff',
-            cursor: 'pointer',
-            'font-size': '12px',
-            'font-weight': 600,
-            transition: 'all 0.3s',
-            '&:hover': {
-                'opacity': 0.8,
-            },
-        },
-        workareaBody: {
-            flex: 1,
-            padding: '16px',
-            background: token.value.colorBgContainer,
-            borderRadius: '16px',
-            minHeight: 0,
-        },
-        bodyContent: {
-            overflow: 'auto',
-            height: '100%',
-            'padding-right': '10px',
-        },
-        bodyText: {
-            color: token.value.colorText,
-            padding: '8px'
-        },
-    } as const;
-});
-
-// ==================== State =================
-const copilotOpen = ref<boolean>(true)
 
 const roles: (typeof Bubble.List)['roles'] = {
     assistant: {
@@ -622,24 +325,6 @@ const roles: (typeof Bubble.List)['roles'] = {
 
 // ==================== Fn =================
 
-async function download(type: string) {
-    if (type == 'Markdown') {
-        const blob = new Blob([writing.value], { type: 'text/plain;charset=utf-8' })
-        saveAs(blob, 'download.md')
-    } else if (type == 'Word') {
-        const html = md.render(writing.value)
-        const res = await axios({
-            method: "post",
-            url: `${file_service}/pandoc/html2docx`,
-            headers: {
-                "Content-Type": "text/plain",
-            },
-            responseType: "blob",
-            data: html,
-        });
-        saveAs(res.data, 'download.docx')
-    }
-}
 
 /**
  * 定义 EventSource 事件的接口，便于类型检查。
@@ -692,6 +377,24 @@ function parseEventSourceData(text: string): EventSourceEvent[] {
     return parsedEvents;
 }
 
+function addImageToSecondLine(markdownString: string, imageUrl: string, altText = '图片') {
+    // 定义图片语法
+    const imageSyntax = `![${altText}](${imageUrl})`;
+
+    // 将 Markdown 字符串按行分割成数组
+    const lines = markdownString.split('\n');
+
+    // 如果 Markdown 内容不足两行，直接在末尾添加图片
+    if (lines.length < 2) {
+        lines.push('', imageSyntax); // 确保图片在新的一行
+    } else {
+        // 否则，在第二行（索引为 1）插入图片
+        lines.splice(1, 0, imageSyntax);
+    }
+
+    // 将数组重新连接成 Markdown 字符串
+    return lines.join('\n');
+}
 </script>
 <style scoped>
 :deep(.ant-bubble p:last-child) {
