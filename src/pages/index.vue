@@ -48,7 +48,8 @@
           indeterminate></v-progress-linear>
 
         <div :style="AICopilotStore.workareaStyles.bodyContent">
-          <Editor v-model="EditorStore.writing"></Editor>
+          <Editor v-model="EditorStore.writing" v-model:selection="EditorStore.selection" v-model:instance="EditorStore.editorInstance"></Editor>
+
         </div>
       </div>
     </div>

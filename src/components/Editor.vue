@@ -8,7 +8,6 @@
                         @ready="onReady" />
                 </div>
             </div>
-            <!-- <div class="editor_container__word-count" ref="editorWordCountElement"></div> -->
         </div>
     </div>
 </template>
@@ -19,7 +18,7 @@
  * https://ckeditor.com/ckeditor-5/builder/?redirect=portal#installation/NoRgTANARGB0DssxWiADAFgGz3gDgFY0CMwBODeDNAZjqqzPkxHjM0PgIJAPjGoooALwAWAWgDGAOxSRQEEBDSLligLrQAppKwEyWtFHVA==
  */
 
-import { computed, ref, onMounted, watchEffect, useTemplateRef } from 'vue';
+import { computed, ref, onMounted, useTemplateRef } from 'vue';
 import { Ckeditor } from '@ckeditor/ckeditor5-vue';
 
 import {
@@ -114,13 +113,15 @@ import 'ckeditor5/ckeditor5.css';
  */
 const LICENSE_KEY = 'GPL';
 
-const editorWordCount = useTemplateRef('editorWordCountElement');
-
 const isLayoutReady = ref(false);
 
 const editor = BalloonEditor;
 
 const value = defineModel()
+
+const selectionModel = defineModel('selection')
+
+const instanceModel = defineModel('instance')
 
 const config = computed(() => {
     if (!isLayoutReady.value) {
@@ -417,11 +418,21 @@ onMounted(() => {
 });
 
 
-
 function onReady(editor) {
-    // [...editorWordCount.value.children].forEach(child => child.remove());
+    // 监听选区变化事件
+    instanceModel.value = editor
 
-    // const wordCount = editor.plugins.get('WordCount');
-    // editorWordCount.value.appendChild(wordCount.wordCountContainer);
+    editor.model.document.selection.on('change:range', () => {
+        const selection = editor.model.document.selection;
+        const contentFragment = editor.model.getSelectedContent(selection);
+
+        selectionModel.value = contentFragment.toJSON().map(item => {
+            if (item.name == 'paragraph')
+                return item.children.map(child => child.data).join('')
+            else
+                return item.data;
+        }).join('')
+    });
 }
+
 </script>

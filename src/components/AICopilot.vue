@@ -82,6 +82,10 @@
                                 console.error(error);
                             }
                         }" @key-down="props?.onKeyDown">
+                        <template #header>
+                            <Sender.Header :open="hasRef" :title="EditorStore.selection" />
+                        </template>
+
                         <template #actions="{ info: { components: { SendButton, LoadingButton, SpeechButton } } }">
                             <div :style="{ display: 'flex', alignItems: 'center', gap: 4 }">
                                 <component :is="LoadingButton" v-if="AICopilotStore.loading" type="default"
@@ -152,6 +156,8 @@ const curSession = ref(sessionList.value[0].key);
 
 const inputValue = ref('');
 
+const hasRef = ref(true);
+
 // ==================== Runtime ====================
 
 const [agent] = useXAgent<string, { message: { content: string, role: string } }, { content: string; role: string }>({
@@ -188,16 +194,21 @@ const [agent] = useXAgent<string, { message: { content: string, role: string } }
                                 console.log('Stream complete');
                                 controller.close();
                                 try {
-                                    if (intention == 'Writing') {
+                                    if (EditorStore.selection) {
+                                        onUpdate({ content: '部分文章创作完成', role: 'assistant' })
+                                        onSuccess([{ content: '部分文章创作完成', role: 'assistant' }])
+                                        EditorStore.replaceSelectedText(fullData)
+                                    } else if (intention == 'Writing') {
                                         onUpdate({ content: '文章创作完成', role: 'assistant' })
                                         onSuccess([{ content: '文章创作完成', role: 'assistant' }])
                                         EditorStore.writing = fullData
                                         setMessages((prev: any) => [...prev, { id: uuid(), message: { content: "开始生成插图", role: "assistant" }, status: 'success' }])
+                                        EditorStore.writing = addImageToSecondLine(EditorStore.writing, `![](/loading.gif)`)
                                         agent.value.request({ message: { content: '根据文章生成插图关键词，要求300字内', role: '' } }, {
                                             onUpdate: function (chunk: { content: string; role: string; }): void { },
                                             onSuccess: async function (chunk: { content: string; role: string; }[]): Promise<void> {
                                                 const url = chunk[0].content
-                                                EditorStore.writing = addImageToSecondLine(EditorStore.writing, url)
+                                                EditorStore.writing = addImageToSecondLine(EditorStore.writing, `![插图](${url})`)
                                                 setMessages((prev: any) => [...prev, { id: uuid(), message: { content: "插图生成完成", role: "assistant" }, status: 'success' }])
                                             },
                                             onError: function (error: Error): void { }
@@ -254,7 +265,9 @@ const [agent] = useXAgent<string, { message: { content: string, role: string } }
                                 console.error(e)
                             }
 
-                            if (intention == 'Writing') {
+                            if (EditorStore.selection) {
+                                // 如果是重写部分则不需要替换全部，转到结束后替换部分内容
+                            } else if (intention == 'Writing') {
                                 EditorStore.writing = fullData
                             } else if (intention == 'ImgPrompt') {
                                 // 回复过程中不做处理，结束合成图片
@@ -298,10 +311,17 @@ watch(
 
 // ==================== Event ====================
 const handleUserSubmit = (val: string) => {
-    onRequest({
-        stream: true,
-        message: { content: val, role: 'user' },
-    });
+    if (EditorStore.selection) {
+        onRequest({
+            stream: true,
+            message: { content: `${val}:"${EditorStore.selection}"`, role: 'user' },
+        });
+    } else {
+        onRequest({
+            stream: true,
+            message: { content: val, role: 'user' },
+        });
+    }
 
     // session title mock
     if (sessionList.value.find((i) => i.key === curSession.value)?.label === 'New session') {
@@ -377,10 +397,10 @@ function parseEventSourceData(text: string): EventSourceEvent[] {
     return parsedEvents;
 }
 
-function addImageToSecondLine(markdownString: string, imageUrl: string, altText = '图片') {
-    // 定义图片语法
-    const imageSyntax = `![${altText}](${imageUrl})`;
-
+function addImageToSecondLine(markdownString: string, imageSyntax: string, altText = '图片') {
+    if (markdownString.includes('![](/loading.gif)')) {
+        return markdownString.replace('![](/loading.gif)', imageSyntax);
+    }
     // 将 Markdown 字符串按行分割成数组
     const lines = markdownString.split('\n');
 

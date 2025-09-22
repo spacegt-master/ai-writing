@@ -13,4 +13,9 @@
 html {
   overflow: hidden;
 }
+
+.placeholder-img {
+  width: 100px;
+  margin: 50px;
+}
 </style>
