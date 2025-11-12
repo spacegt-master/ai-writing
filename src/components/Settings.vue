@@ -31,7 +31,7 @@
             </div>
 
             <v-textarea class="my-2" v-model="settingsStore.sensitiveWords" flat hide-details="auto"
-                placeholder="敏感词逗号分割" rows="6" variant="solo-filled" />
+                placeholder="敏感词英文逗号分割" rows="6" variant="solo-filled" />
 
         </div>
 
